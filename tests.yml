@@ -1,0 +1,18 @@
+---
+- name: Test cert manager issuer present
+  shell: kubectl describe clusterissuer -n cert-manager --kubeconfig {{ kubeconfig_path }}
+  register: describe_clusterissuer
+
+- name: Get loadbalacer ingress IP for DNS record
+  shell: kubectl get svc ingress-nginx-controller -o jsonpath="{.status.loadBalancer.ingress[0].ip}" --kubeconfig {{ kubeconfig_path }}
+  register: get_lb_ip
+
+- name: Print LB ingress IP to use in DNS zone
+  debug: msg="Create an A record in your DNS zone to point wordpress domains to LB {{ get_lb_ip.stdout }}"
+
+- name: Get wordpress user password
+  shell: "kubectl get secrets wordpress-{{ item.name }} -o jsonpath='{.data.wordpress-password}' --kubeconfig {{ kubeconfig_path }} | base64 -d"
+  register: wp_user_pass
+  loop: "{{ wordpress_deployments }}"
+
+- debug: var=wp_user_pass.stdout_lines

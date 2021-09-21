@@ -1,0 +1,10 @@
+service:
+  type: {{ item.service_type }}
+ingress:
+  enabled: {{ item.ingress_enabled | default('true') }}
+  certManager: {{ item.ingress_certmanager | default('true') }}
+  ingressClassName: nginx
+  tls: true
+  annotations:
+    cert-manager.io/cluster-issuer: {{ item.cluster_issuer }}
+  hostname: {{ item.domain_name }}

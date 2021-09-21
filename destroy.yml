@@ -1,0 +1,30 @@
+---
+- name: Destroy project
+  hosts:
+    - localhost
+  vars_files:
+    - vars/main.yml
+  vars_prompt:
+    - name: linode_api_token
+      private: yes
+      prompt: Enter Linode API token here
+  tasks:
+    - name: tf plan
+      shell: /usr/bin/terraform plan -destroy -var token={{ linode_api_token }}
+      args:
+        chdir: /ansible/terraform/lke
+      register: tf_plan
+
+    - name: tf destroy
+      shell: /usr/bin/terraform destroy -auto-approve -var token={{ linode_api_token }} -var-file="terraform.tfvars"
+      args:
+        chdir: /ansible/terraform/lke
+      when: tf_plan.rc == 0
+      register: tf_destroy
+
+    - debug: var=tf_destroy
+
+    - name: remove tf state file
+      file:
+        path: /ansible/terraform/lke/terraform.tfstate
+        state: absent

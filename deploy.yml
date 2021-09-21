@@ -1,0 +1,63 @@
+---
+- name: Deploy project
+  hosts:
+    - localhost
+  vars_files:
+    - vars/main.yml
+  vars_prompt:
+    - name: linode_api_token
+      private: yes
+      prompt: Enter Linode API token here
+  tasks:
+    - name: tf plan
+      shell: /usr/bin/terraform plan -var token={{ linode_api_token }} -var-file="terraform.tfvars"
+      args:
+        chdir: /ansible/terraform/lke
+      register: tf_plan
+
+    - name: tf apply
+      shell: /usr/bin/terraform apply -auto-approve -var token={{ linode_api_token }} -var-file="terraform.tfvars"
+      args:
+        chdir: /ansible/terraform/lke
+      when: tf_plan.rc == 0
+      register: tf_apply
+
+    - debug: var=tf_apply
+
+    - name: get kubeconfig
+      shell: terraform output kubeconfig
+      args:
+        chdir: /ansible/terraform/lke
+      register: get_kubeconfig
+
+    - debug: var=get_kubeconfig
+
+    - name: create kubeconfig
+      copy:
+        dest: "{{ kubeconfig_path }}"
+        content: "{{ get_kubeconfig.stdout | b64decode }}"
+
+    - name: ensure root/.kube/
+      file:
+        path: /root/.kube/
+        state: directory
+
+    - name: copy kubeconfig(ephemeral)
+      copy:
+        dest: /root/.kube/config
+        content: "{{ get_kubeconfig.stdout | b64decode }}"
+
+    - name: copy kubeconfig (persistent)
+      copy:
+        dest: "{{ kubeconfig_path }}"
+        content: "{{ get_kubeconfig.stdout | b64decode }}"
+
+    - name: get nodes
+      shell: kubectl get nodes --kubeconfig "{{ kubeconfig_path }}"
+      register: get_nodes
+      until: get_nodes.rc == 0
+      retries: 10
+      delay: 2
+      ignore_errors: yes
+
+    - debug: var=get_nodes

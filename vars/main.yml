@@ -1,0 +1,48 @@
+---
+kubeconfig_path: "{{ playbook_dir }}/kubeconfig.yaml"
+
+wordpress_deployments:
+  - name: alpha
+    domain_name: alpha.mydomain.com
+    service_type: ClusterIP
+    cluster_issuer: letsencrypt-prd
+    state: present
+
+ingress_deployment_state: present
+wordpress_deployment_state: present
+cert_manager_deployment_state: present
+cert_manager_le_email: certmanager@domain.com
+cert_manager_le_prd_manifest: |
+  apiVersion: cert-manager.io/v1alpha2
+  kind: ClusterIssuer
+  metadata:
+    name: letsencrypt-prd
+    labels:
+      name: letsencrypt-prd
+  spec:
+    acme:
+      email: {{ cert_manager_le_email }}
+      privateKeySecretRef:
+        name: letsencrypt-prd
+      server: https://acme-v02.api.letsencrypt.org/directory
+      solvers:
+      - http01:
+          ingress:
+            class: nginx
+cert_manager_le_staging_manifest: |
+  apiVersion: cert-manager.io/v1alpha2
+  kind: ClusterIssuer
+  metadata:
+    name: letsencrypt-staging
+  spec:
+    acme:
+      email: {{ cert_manager_le_email }}
+      server: https://acme-staging-v02.api.letsencrypt.org/directory
+      privateKeySecretRef:
+        # Secret resource used to store the account's private key.
+        name: letsencrypt-staging
+      # Add a single challenge solver, HTTP01 using nginx
+      solvers:
+      - http01:
+          ingress:
+            class: nginx
